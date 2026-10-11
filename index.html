@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Marktüberblick – größte Aktienmärkte, Branchen und ETFs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF0F4; --surface:#FFFFFF; --ink:#16213A; --muted:#5B6678; --line:#D5DBE4;
+  --gain:#0E7A68; --loss:#B2343F; --na:#8A93A3; --note:#FFF4D6; --note-ink:#5C4500;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1624; --surface:#172034; --ink:#E7ECF5; --muted:#9AA6BA; --line:#2A3650;
+    --gain:#3FC3A9; --loss:#F0707A; --na:#7C87A0; --note:#3A2F10; --note-ink:#F1D98A;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1624; --surface:#172034; --ink:#E7ECF5; --muted:#9AA6BA; --line:#2A3650;
+  --gain:#3FC3A9; --loss:#F0707A; --na:#7C87A0; --note:#3A2F10; --note-ink:#F1D98A;
+}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 64px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.55;font-size:16px}
+main{max-width:720px;margin:0 auto;padding:20px 16px 48px}
+h1,h2{font-family:"IBM Plex Serif",Georgia,"Times New Roman",serif;font-weight:600;line-height:1.2;margin:0}
+h1{font-size:1.9rem;margin-bottom:6px}
+h2{font-size:1.25rem;margin-bottom:10px}
+h3{font-family:inherit}
+.sub{color:var(--muted);margin:0 0 14px;font-size:.95rem}
+section{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 16px;margin-bottom:16px}
+p{margin:0 0 10px} p:last-child{margin-bottom:0}
+.legend{margin:10px 0 0;font-size:.8rem;color:var(--muted)}
+.note{background:var(--note);color:var(--note-ink);border-radius:8px;padding:12px 14px;font-size:.9rem;margin-bottom:16px}
+.foot{color:var(--muted);font-size:.8rem}
+
+/* Zeitraum-Filter, bleibt beim Scrollen sichtbar */
+.bar-sticky{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:8px 0 10px;margin:0 0 6px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font:inherit;font-size:.88rem;font-weight:500;min-height:40px;padding:6px 14px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chip:focus-visible,.rowbtn:focus-visible{outline:2px solid var(--gain);outline-offset:2px}
+
+/* Märkte: Balken um eine Mittelachse */
+.row{display:grid;grid-template-columns:104px 1fr 62px;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--line)}
+#rows .row:first-child{border-top:0}
+.name{font-weight:500;font-size:.92rem;line-height:1.25}
+.name small{display:block;color:var(--muted);font-weight:400;font-size:.78rem}
+.track{position:relative;height:18px}
+.track::before{content:"";position:absolute;left:50%;top:-4px;bottom:-4px;width:1px;background:var(--line)}
+.bar{position:absolute;top:2px;bottom:2px;border-radius:3px}
+.bar.up{left:50%;background:var(--gain)} .bar.down{right:50%;background:var(--loss)}
+.val{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;font-size:.92rem}
+.val.up,.v.up{color:var(--gain)} .val.down,.v.down{color:var(--loss)} .val.na,.v.na{color:var(--na);font-weight:500}
+.na-text{position:absolute;left:50%;transform:translateX(-50%);top:0;font-size:.75rem;color:var(--na);white-space:nowrap}
+.rowbtn{font:inherit;color:inherit;background:none;border:0;border-top:1px solid var(--line);width:100%;text-align:left;cursor:pointer}
+.rowbtn[aria-pressed="true"]{background:var(--bg)}
+.curve{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.curve svg{width:100%;height:auto;display:block}
+.curve-title{font-weight:600;font-size:.92rem;margin:0 0 6px}
+.line-up{stroke:var(--gain)} .line-down{stroke:var(--loss)} .zero{stroke:var(--line);stroke-width:1}
+
+/* Aktien und ETFs */
+.grp{font-size:1rem;font-weight:600;margin:18px 0 2px}
+.grp.first{margin-top:4px}
+.stock{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--line)}
+.stock .t{font-weight:500}
+.stock .t small{display:block;color:var(--muted);font-weight:400;font-size:.82rem;line-height:1.35}
+.v{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+.etf{border-top:1px solid var(--line);padding:12px 0}
+#etfs .etf:first-child{border-top:0;padding-top:4px}
+.etf-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.etf h3{font-size:.97rem;font-weight:600;margin:0 0 2px}
+.etf .meta{color:var(--muted);font-size:.84rem;margin:0 0 4px}
+.etf p{font-size:.9rem;margin:0 0 4px}
+.watch{display:grid;grid-template-columns:1fr auto auto auto;gap:6px 12px;font-size:.9rem;align-items:baseline}
+.watch .h{color:var(--muted);font-size:.75rem}
+.watch .n small{color:var(--muted)}
+ul{margin:0;padding-left:1.15rem} li{margin-bottom:8px}
+@media (max-width:380px){.row{grid-template-columns:88px 1fr 56px}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Marktüberblick</h1>
+  <p class="sub" id="asof">Daten werden geladen …</p>
+  <div class="note" id="banner" hidden></div>
+
+  <div class="bar-sticky">
+    <div class="chips" id="chips" role="group" aria-label="Zeitraum wählen"></div>
+  </div>
+
+  <section>
+    <h2>Zusammenfassung</h2>
+    <div id="summary"></div>
+  </section>
+
+  <section>
+    <h2>Die zehn größten Aktienmärkte</h2>
+    <div id="rows"></div>
+    <div class="curve" id="curve" hidden></div>
+    <p class="legend" id="rowinfo"></p>
+    <p class="legend">Wertentwicklung der Leitindizes in Lokalwährung. Tippe auf eine Zeile, um die Kurve des gewählten Zeitraums zu sehen.</p>
+  </section>
+
+  <section>
+    <h2>Aktien nach Branche</h2>
+    <div id="stocks"></div>
+    <p class="legend">Renditen auf Basis der Schlusskurse laut Google Finance, ohne Dividenden. Aktualität und Verfügbarkeit können je Börse abweichen, die Kurse sind teils verzögert.</p>
+  </section>
+
+  <section>
+    <h2>ETFs für den langfristigen Aufbau</h2>
+    <p>Ausgewählt nach breitem Index, niedrigen Kosten (TER) und großer Fondsgröße. Kosten und Größe stammen von justETF und können abweichen. Prüfe sie vor einem Kauf.</p>
+    <div id="etfs"></div>
+  </section>
+
+  <section>
+    <h2>Beobachtungsliste</h2>
+    <p>Werte, die über 1 Woche, 1 Monat und 3 Monate im Plus liegen. Das ist ein reiner Filter nach vergangener Entwicklung und keine Prognose für die kommende Woche.</p>
+    <div id="watch"></div>
+  </section>
+
+  <section>
+    <h2>Termine und Risiken</h2>
+    <ul id="events"></ul>
+    <p class="legend" id="eventsinfo"></p>
+  </section>
+
+  <div class="note">
+    Dies ist eine Marktübersicht und keine Anlageberatung oder Kaufempfehlung. Kurse in der Vergangenheit sagen nichts über die Zukunft aus. Auch breit gestreute ETFs können zeitweise stark im Wert sinken.
+  </div>
+  <p class="foot" id="errors"></p>
+</main>
+
+<script>
+(function(){
+/* ===== HIER EINMAL ANPASSEN: Link der veröffentlichten Google-Tabelle (CSV) ===== */
+var SHEET_URL="LINK_HIER_EINTRAGEN";
+/* ================================================================================= */
+
+var ITEMS=[
+ {
+  "id": "usa",
+  "kind": "market",
+  "name": "USA",
+  "index": "S&P 500"
+ },
+ {
+  "id": "china",
+  "kind": "market",
+  "name": "China",
+  "index": "Shanghai Composite"
+ },
+ {
+  "id": "japan",
+  "kind": "market",
+  "name": "Japan",
+  "index": "Nikkei 225"
+ },
+ {
+  "id": "hk",
+  "kind": "market",
+  "name": "Hongkong",
+  "index": "Hang Seng"
+ },
+ {
+  "id": "indien",
+  "kind": "market",
+  "name": "Indien",
+  "index": "Nifty 50"
+ },
+ {
+  "id": "uk",
+  "kind": "market",
+  "name": "Großbritannien",
+  "index": "FTSE 100"
+ },
+ {
+  "id": "de",
+  "kind": "market",
+  "name": "Deutschland",
+  "index": "DAX"
+ },
+ {
+  "id": "fr",
+  "kind": "market",
+  "name": "Frankreich",
+  "index": "CAC 40"
+ },
+ {
+  "id": "ca",
+  "kind": "market",
+  "name": "Kanada",
+  "index": "S&P/TSX"
+ },
+ {
+  "id": "sa",
+  "kind": "market",
+  "name": "Saudi-Arabien",
+  "index": "TASI"
+ },
+ {
+  "id": "msft",
+  "kind": "stock",
+  "sector": "Technologie",
+  "name": "Microsoft",
+  "country": "USA"
+ },
+ {
+  "id": "avgo",
+  "kind": "stock",
+  "sector": "Technologie",
+  "name": "Broadcom",
+  "country": "USA"
+ },
+ {
+  "id": "nvda",
+  "kind": "stock",
+  "sector": "Technologie",
+  "name": "Nvidia",
+  "country": "USA"
+ },
+ {
+  "id": "amd",
+  "kind": "stock",
+  "sector": "Technologie",
+  "name": "AMD",
+  "country": "USA"
+ },
+ {
+  "id": "sap",
+  "kind": "stock",
+  "sector": "Technologie",
+  "name": "SAP",
+  "country": "Deutschland"
+ },
+ {
+  "id": "rhm",
+  "kind": "stock",
+  "sector": "Rüstung",
+  "name": "Rheinmetall",
+  "country": "Deutschland"
+ },
+ {
+  "id": "lmt",
+  "kind": "stock",
+  "sector": "Rüstung",
+  "name": "Lockheed Martin",
+  "country": "USA"
+ },
+ {
+  "id": "bae",
+  "kind": "stock",
+  "sector": "Rüstung",
+  "name": "BAE Systems",
+  "country": "Großbritannien"
+ },
+ {
+  "id": "thales",
+  "kind": "stock",
+  "sector": "Rüstung",
+  "name": "Thales",
+  "country": "Frankreich"
+ },
+ {
+  "id": "jpm",
+  "kind": "stock",
+  "sector": "Finanzdienstleister",
+  "name": "JPMorgan Chase",
+  "country": "USA"
+ },
+ {
+  "id": "gs",
+  "kind": "stock",
+  "sector": "Finanzdienstleister",
+  "name": "Goldman Sachs",
+  "country": "USA"
+ },
+ {
+  "id": "hsbc",
+  "kind": "stock",
+  "sector": "Finanzdienstleister",
+  "name": "HSBC",
+  "country": "Großbritannien"
+ },
+ {
+  "id": "allianz",
+  "kind": "stock",
+  "sector": "Finanzdienstleister",
+  "name": "Allianz",
+  "country": "Deutschland"
+ },
+ {
+  "id": "ry",
+  "kind": "stock",
+  "sector": "Finanzdienstleister",
+  "name": "Royal Bank of Canada",
+  "country": "Kanada"
+ },
+ {
+  "id": "nee",
+  "kind": "stock",
+  "sector": "Erneuerbare Energien",
+  "name": "NextEra Energy",
+  "country": "USA"
+ },
+ {
+  "id": "fslr",
+  "kind": "stock",
+  "sector": "Erneuerbare Energien",
+  "name": "First Solar",
+  "country": "USA"
+ },
+ {
+  "id": "be",
+  "kind": "stock",
+  "sector": "Erneuerbare Energien",
+  "name": "Bloom Energy",
+  "country": "USA"
+ },
+ {
+  "id": "vestas",
+  "kind": "stock",
+  "sector": "Erneuerbare Energien",
+  "name": "Vestas",
+  "country": "Dänemark"
+ },
+ {
+  "id": "iberdrola",
+  "kind": "stock",
+  "sector": "Erneuerbare Energien",
+  "name": "Iberdrola",
+  "country": "Spanien"
+ },
+ {
+  "id": "edpr",
+  "kind": "stock",
+  "sector": "Erneuerbare Energien",
+  "name": "EDP Renováveis",
+  "country": "Portugal"
+ },
+ {
+  "id": "etf_world",
+  "kind": "etf",
+  "title": "Weltweit, Industrieländer",
+  "name": "iShares Core MSCI World UCITS ETF (Acc)",
+  "isin": "IE00B4L5Y983",
+  "ter": "0,20 %",
+  "size": "rund 133 Mrd. €",
+  "note": "Günstigere, aber kleinere Alternativen: UBS Core MSCI World (IE00BD4TXV59, TER 0,06 %) und Invesco MSCI World (IE00B60SX394, TER 0,05 %)."
+ },
+ {
+  "id": "etf_allworld",
+  "kind": "etf",
+  "title": "Weltweit inklusive Schwellenländern",
+  "name": "Vanguard FTSE All-World UCITS ETF (USD) Accumulating",
+  "isin": "IE00BK5BQT80",
+  "ter": "0,14 %",
+  "size": "rund 55 Mrd. €",
+  "note": "Deckt auch China, Indien und weitere Schwellenländer in einem Fonds ab."
+ },
+ {
+  "id": "etf_usa",
+  "kind": "etf",
+  "title": "USA",
+  "name": "iShares Core S&P 500 UCITS ETF (Acc)",
+  "isin": "IE00B5BMR087",
+  "ter": "0,07 %",
+  "size": "rund 141 Mrd. €",
+  "note": "500 große US-Unternehmen. Günstiger: Invesco S&P 500 (Acc, IE00B3YCGJ38), TER 0,05 %, rund 39,5 Mrd. €."
+ },
+ {
+  "id": "etf_japan",
+  "kind": "etf",
+  "title": "Japan",
+  "name": "iShares Core MSCI Japan IMI UCITS ETF",
+  "isin": "IE00B4L5YX21",
+  "ter": "0,12 %",
+  "size": "rund 7,9 Mrd. €",
+  "note": "Der IMI-Index enthält große, mittlere und kleine Unternehmen. Alternative: Xtrackers MSCI Japan 1C (LU0274209740), TER 0,12 %."
+ },
+ {
+  "id": "etf_india",
+  "kind": "etf",
+  "title": "Indien",
+  "name": "iShares MSCI India UCITS ETF (Acc)",
+  "isin": "IE00BZCQB185",
+  "ter": "0,65 %",
+  "size": "rund 4,3 Mrd. € (ältere Quelle)",
+  "note": "Deutlich günstiger, aber swap-basiert: Xtrackers MSCI India Swap 1C, TER 0,19 %. Angaben bitte vor einem Kauf prüfen."
+ }
+];
+var EVENTS_STAND="2026-10-11";
+var EVENTS=[
+  {title:"Quartalszahlen der US-Banken",text:"JPMorgan, Goldman Sachs, Citigroup und Wells Fargo berichten Mitte Oktober und eröffnen die Berichtssaison."},
+  {title:"US-Inflationsdaten",text:"Verbraucher- und Erzeugerpreise (CPI, PPI) stehen an."},
+  {title:"Anleiherenditen und Ölpreis",text:"Hohe Renditen und steigende Energiepreise belasteten zuletzt die Stimmung."}
+];
+
+var PERIODS=[["1W","1 Woche"],["1M","1 Monat"],["3M","3 Monate"],["6M","6 Monate"],["YTD","Seit Jahresbeginn"],["1J","1 Jahr"],["3J","3 Jahre"],["5J","5 Jahre"]];
+var DATA=null, period="1W", sel=null, DAY=864e5;
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c];});}
+function fmt(v){var d=Math.abs(Math.round(v*10)-v*10)<1e-9?1:2;return (v>0?"+":v<0?"\u2212":"")+Math.abs(v).toFixed(d).replace(".",",")+" %";}
+function cls(v){return v<0?"down":"up";}
+function has(x){return x&&x.ret&&typeof x.ret[period]==="number";}
+function val(x){return has(x)?x.ret[period]:-1e9;}
+function iso(ms){return new Date(ms).toISOString().slice(0,10);}
+function dmy(isoStr){var p=String(isoStr).split("-");return p.length===3?p[2]+"."+p[1]+".":isoStr;}
+function dmyFull(isoStr){var p=String(isoStr).split("-");return p.length===3?p[2]+"."+p[1]+"."+p[0]:isoStr;}
+
+/* ---------- CSV lesen ---------- */
+function parseCSV(text){
+  var rows=[],row=[],cur="",q=false,i,n=text.length,ch;
+  for(i=0;i<n;i++){
+    ch=text[i];
+    if(q){
+      if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; }
+      else cur+=ch;
+    }else if(ch==='"')q=true;
+    else if(ch===","){row.push(cur);cur="";}
+    else if(ch==="\n"){row.push(cur);rows.push(row);row=[];cur="";}
+    else if(ch!=="\r")cur+=ch;
+  }
+  if(cur.length||row.length){row.push(cur);rows.push(row);}
+  return rows;
+}
+function parseDate(s){
+  s=String(s||"").trim();var m;
+  if((m=s.match(/^(\d{4})-(\d{2})-(\d{2})/)))return Date.UTC(+m[1],+m[2]-1,+m[3]);
+  if((m=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/)))return Date.UTC(+m[3],+m[2]-1,+m[1]);
+  if((m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)))return Date.UTC(+m[3],+m[1]-1,+m[2]);
+  return null;
+}
+function parseNum(s){
+  s=String(s==null?"":s).trim().replace(/\s/g,"");
+  if(!s||s.charAt(0)==="#")return NaN;
+  if(s.indexOf(",")>-1&&s.indexOf(".")>-1){
+    if(s.lastIndexOf(",")>s.lastIndexOf("."))s=s.replace(/\./g,"").replace(",",".");
+    else s=s.replace(/,/g,"");
+  }else if(s.indexOf(",")>-1)s=s.replace(",",".");
+  return parseFloat(s);
+}
+
+/* ---------- Rechnen ---------- */
+function addMonths(ms,k){
+  var d=new Date(ms),y=d.getUTCFullYear(),m=d.getUTCMonth()+k,day=d.getUTCDate();
+  var first=new Date(Date.UTC(y,m,1));
+  var ld=new Date(Date.UTC(first.getUTCFullYear(),first.getUTCMonth()+1,0)).getUTCDate();
+  return Date.UTC(first.getUTCFullYear(),first.getUTCMonth(),Math.min(day,ld));
+}
+function computeReturns(s){
+  var last=s[s.length-1],ly=new Date(last[0]).getUTCFullYear();
+  var bases={"1W":last[0]-7*DAY,"1M":addMonths(last[0],-1),"3M":addMonths(last[0],-3),"6M":addMonths(last[0],-6),
+    "YTD":Date.UTC(ly-1,11,31),"1J":addMonths(last[0],-12),"3J":addMonths(last[0],-36),"5J":addMonths(last[0],-60)};
+  var out={};
+  Object.keys(bases).forEach(function(p){
+    var t=bases[p],lo=0,hi=s.length-1,idx=-1;
+    while(lo<=hi){var mid=(lo+hi)>>1;if(s[mid][0]<=t){idx=mid;lo=mid+1;}else hi=mid-1;}
+    if(idx>=0&&(t-s[idx][0])/DAY<=7)out[p]=Math.round((last[1]/s[idx][1]-1)*10000)/100;
+  });
+  return out;
+}
+
+function buildData(rows){
+  var keys=rows[0]||[],bySeries={},c,r;
+  for(c=0;c+1<keys.length;c+=2){
+    var key=String(keys[c]||"").trim();if(!key)continue;
+    var s=[];
+    for(r=2;r<rows.length;r++){
+      var t=parseDate(rows[r][c]),v=parseNum(rows[r][c+1]);
+      if(t!==null&&isFinite(v)&&v>0)s.push([t,v]);
+    }
+    s.sort(function(a,b){return a[0]-b[0];});
+    bySeries[key]=s;
+  }
+  var out={markets:[],stocks:[],etfs:[],errors:[],asof:null};
+  ITEMS.forEach(function(it){
+    var e={};for(var k in it)e[k]=it[k];
+    var s=bySeries[it.id];
+    if(s&&s.length>1){
+      e.ret=computeReturns(s);e.asof=iso(s[s.length-1][0]);
+      if(it.kind==="market")e.series=s;
+      if(!out.asof||e.asof>out.asof)out.asof=e.asof;
+    }else{e.ret={};out.errors.push(it.name||it.title||it.id);}
+    out[it.kind==="market"?"markets":it.kind==="stock"?"stocks":"etfs"].push(e);
+  });
+  out.summary=buildSummary(out);
+  out.watchlist=buildWatchlist(out);
+  return out;
+}
+
+function buildSummary(d){
+  var p=[],ms=d.markets.filter(function(m){return typeof m.ret["1W"]==="number";});
+  if(ms.length){
+    ms.sort(function(a,b){return b.ret["1W"]-a.ret["1W"];});
+    var up=ms.filter(function(m){return m.ret["1W"]>0;}).length,b=ms[0],w=ms[ms.length-1];
+    p.push("Von "+ms.length+" M\u00e4rkten mit Daten legten "+up+" \u00fcber die letzten sieben Tage zu, "+(ms.length-up)+" gaben nach. Am st\u00e4rksten lief "+b.name+" ("+b.index+", "+fmt(b.ret["1W"])+"), am schw\u00e4chsten "+w.name+" ("+w.index+", "+fmt(w.ret["1W"])+").");
+  }
+  var ys=d.markets.filter(function(m){return typeof m.ret.YTD==="number";});
+  if(ys.length>1){
+    ys.sort(function(a,b){return b.ret.YTD-a.ret.YTD;});
+    p.push("Seit Jahresbeginn f\u00fchrt "+ys[0].name+" ("+fmt(ys[0].ret.YTD)+"), am Ende steht "+ys[ys.length-1].name+" ("+fmt(ys[ys.length-1].ret.YTD)+").");
+  }
+  var groups={},order=[];
+  d.stocks.forEach(function(s){if(typeof s.ret["1W"]==="number"){if(!groups[s.sector]){groups[s.sector]=[];order.push(s.sector);}groups[s.sector].push(s);}});
+  var lines=order.map(function(sec){
+    var a=groups[sec].sort(function(x,y){return y.ret["1W"]-x.ret["1W"];});
+    return a.length===1?sec+": "+a[0].name+" "+fmt(a[0].ret["1W"]):sec+": vorn "+a[0].name+" ("+fmt(a[0].ret["1W"])+"), hinten "+a[a.length-1].name+" ("+fmt(a[a.length-1].ret["1W"])+")";
+  });
+  if(lines.length)p.push("Branchen der letzten sieben Tage: "+lines.join("; ")+".");
+  return p;
+}
+function buildWatchlist(d){
+  var items=[];
+  [["Aktie",d.stocks],["ETF",d.etfs]].forEach(function(g){
+    g[1].forEach(function(e){
+      var r=e.ret;
+      if(["1W","1M","3M"].every(function(k){return typeof r[k]==="number"&&r[k]>0;}))
+        items.push({name:e.name,kind:g[0],w:r["1W"],m:r["1M"],q:r["3M"]});
+    });
+  });
+  items.sort(function(a,b){return b.w-a.w;});
+  return items.slice(0,8);
+}
+
+/* ---------- Anzeige ---------- */
+function renderChips(){
+  $("chips").innerHTML=PERIODS.map(function(p){
+    return '<button type="button" class="chip" data-p="'+p[0]+'" aria-pressed="'+(p[0]===period)+'" aria-label="'+p[1]+'">'+p[0]+'</button>';
+  }).join("");
+}
+function renderMarkets(){
+  var list=DATA.markets.slice().sort(function(a,b){return val(b)-val(a);});
+  var vals=list.filter(has).map(function(m){return m.ret[period];});
+  var max=Math.max.apply(null,vals.map(Math.abs).concat([0.01]));
+  $("rows").innerHTML=list.map(function(m){
+    var ok=has(m),v=ok?m.ret[period]:0,bar,vh;
+    if(ok){
+      bar='<div class="bar '+cls(v)+'" style="width:'+(Math.abs(v)/max*48).toFixed(1)+'%"></div>';
+      vh='<div class="val '+cls(v)+'">'+fmt(v)+'</div>';
+    }else{bar='<span class="na-text">keine Daten</span>';vh='<div class="val na">\u2013</div>';}
+    var click=m.series&&m.series.length>1,tag=click?"button":"div";
+    return '<'+tag+(click?' type="button" aria-pressed="'+(sel===m.id)+'"':'')+' class="row'+(click?' rowbtn':'')+'" data-id="'+esc(m.id)+'"><div class="name">'+esc(m.name)+'<small>'+esc(m.index)+'</small></div><div class="track">'+bar+'</div>'+vh+'</'+tag+'>';
+  }).join("");
+  $("rowinfo").textContent=vals.length+" von "+DATA.markets.length+" M\u00e4rkten mit Daten.";
+}
+function cutoff(lastMs){
+  if(period==="1W")return lastMs-7*DAY;
+  if(period==="YTD")return Date.UTC(new Date(lastMs).getUTCFullYear()-1,11,31);
+  return addMonths(lastMs,-({"1M":1,"3M":3,"6M":6,"1J":12,"3J":36,"5J":60}[period]));
+}
+function renderCurve(){
+  var el=$("curve"),m=DATA.markets.filter(function(x){return x.id===sel;})[0];
+  if(!m||!m.series){el.hidden=true;el.innerHTML="";return;}
+  var s=m.series,c=cutoff(s[s.length-1][0]);
+  var pts=s.filter(function(p){return p[0]>=c;});
+  el.hidden=false;
+  if(pts.length<2){el.textContent="F\u00fcr diesen Zeitraum liegen zu wenige Datenpunkte vor.";return;}
+  var base=pts[0][1],ys=pts.map(function(p){return (p[1]/base-1)*100;});
+  var lo=Math.min.apply(null,ys.concat([0])),hi=Math.max.apply(null,ys.concat([0])),W=640,H=220,pad=8;
+  function X(i){return pad+i/(ys.length-1)*(W-2*pad);}
+  function Y(v){return pad+(hi-v)/((hi-lo)||1)*(H-2*pad);}
+  var d=ys.map(function(v,i){return (i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1);}).join(" ");
+  var last=ys[ys.length-1];
+  el.innerHTML='<p class="curve-title">'+esc(m.name)+' \u00b7 '+esc(m.index)+', '+period+': '+fmt(last)+'</p>'+
+    '<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Verlaufskurve '+esc(m.name)+'">'+
+    '<line x1="0" x2="'+W+'" y1="'+Y(0).toFixed(1)+'" y2="'+Y(0).toFixed(1)+'" class="zero"/>'+
+    '<path d="'+d+'" fill="none" class="'+(last>=0?"line-up":"line-down")+'" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>';
+}
+function renderStocks(){
+  var groups={},order=[];
+  DATA.stocks.forEach(function(s){if(!groups[s.sector]){groups[s.sector]=[];order.push(s.sector);}groups[s.sector].push(s);});
+  $("stocks").innerHTML=order.map(function(sec,i){
+    var arr=groups[sec].slice().sort(function(a,b){return val(b)-val(a);});
+    return '<h3 class="grp'+(i?'':' first')+'">'+esc(sec)+'</h3>'+arr.map(function(s){
+      var ok=has(s),v=ok?s.ret[period]:0;
+      var sub=esc(s.country)+(s.asof?' \u00b7 Stand '+esc(dmy(s.asof)):' \u00b7 Kurs nicht abrufbar');
+      return '<div class="stock"><div class="t">'+esc(s.name)+'<small>'+sub+'</small></div><div class="v '+(ok?cls(v):'na')+'">'+(ok?fmt(v):'\u2013')+'</div></div>';
+    }).join("");
+  }).join("");
+}
+function renderEtfs(){
+  $("etfs").innerHTML=DATA.etfs.map(function(e){
+    var ok=has(e),v=ok?e.ret[period]:0;
+    return '<div class="etf"><div class="etf-top"><h3>'+esc(e.title)+'</h3><div class="v '+(ok?cls(v):'na')+'">'+(ok?fmt(v):'\u2013')+'</div></div>'+
+      '<p class="meta">'+esc(e.name)+' \u00b7 '+esc(e.isin)+'</p>'+
+      '<p>TER '+esc(e.ter)+' \u00b7 Fondsgr\u00f6\u00dfe '+esc(e.size)+'</p>'+(e.note?'<p>'+esc(e.note)+'</p>':'')+'</div>';
+  }).join("");
+}
+function renderStatic(){
+  $("asof").textContent=DATA.asof?("Stand der Kurse: "+dmyFull(DATA.asof)+" (Schlusskurse aus Google Finance)"):"Keine Kursdaten gefunden";
+  $("summary").innerHTML=DATA.summary.length?DATA.summary.map(function(p){return '<p>'+esc(p)+'</p>';}).join(""):'<p class="legend">Noch keine Auswertung vorhanden.</p>';
+  var w=DATA.watchlist;
+  $("watch").innerHTML=w.length?
+    '<div class="watch"><div class="h"></div><div class="h">1W</div><div class="h">1M</div><div class="h">3M</div>'+
+    w.map(function(x){return '<div class="n">'+esc(x.name)+' <small>'+esc(x.kind)+'</small></div><div class="v up">'+fmt(x.w)+'</div><div class="v up">'+fmt(x.m)+'</div><div class="v up">'+fmt(x.q)+'</div>';}).join("")+'</div>':
+    '<p class="legend">Aktuell erf\u00fcllt kein Wert alle drei Bedingungen.</p>';
+  $("events").innerHTML=EVENTS.map(function(e){return '<li><strong>'+esc(e.title)+':</strong> '+esc(e.text)+'</li>';}).join("");
+  $("eventsinfo").textContent="Terminliste von Hand gepflegt, Stand "+dmyFull(EVENTS_STAND)+".";
+  $("errors").textContent=DATA.errors.length?("Ohne Kursdaten in der Tabelle: "+DATA.errors.join(", ")+". Pr\u00fcfe dort die Zellen mit #N/A und passe das K\u00fcrzel in Zeile 2 an."):"";
+}
+function renderAll(){renderChips();renderMarkets();renderCurve();renderStocks();renderEtfs();}
+
+/* ---------- Start ---------- */
+function showBanner(html){var b=$("banner");b.hidden=false;b.innerHTML=html;}
+function getUrl(){
+  if(SHEET_URL&&SHEET_URL.indexOf("http")===0)return SHEET_URL;
+  try{var q=new URLSearchParams(location.search).get("sheet");if(q)return q;}catch(e){}
+  try{var s=localStorage.getItem("sheetUrl");if(s)return s;}catch(e){}
+  return "";
+}
+function askForLink(msg){
+  $("asof").textContent="Noch keine Datenquelle verbunden";
+  showBanner((msg?esc(msg)+'<br>':'')+'F\u00fcge den ver\u00f6ffentlichten CSV-Link deiner Google-Tabelle ein. Er wird nur in diesem Browser gespeichert. F\u00fcr alle Besucher trage ihn oben in der Datei bei SHEET_URL ein.<br><input id="linkin" type="url" placeholder="https://docs.google.com/spreadsheets/d/e/\u2026/pub?output=csv" style="width:100%;margin:8px 0;padding:8px;font:inherit"><button type="button" class="chip" id="linkgo">Verbinden</button>');
+  $("linkgo").addEventListener("click",function(){
+    var v=$("linkin").value.trim();
+    if(v.indexOf("http")!==0)return;
+    try{localStorage.setItem("sheetUrl",v);}catch(e){}
+    location.reload();
+  });
+}
+function load(){
+  var url=getUrl();
+  if(!url){askForLink("");return;}
+  fetch(url+(url.indexOf("?")>-1?"&":"?")+"t="+Date.now()).then(function(r){if(!r.ok)throw new Error("HTTP "+r.status);return r.text();}).then(function(text){
+    var rows=parseCSV(text);
+    if(rows.length<3)throw new Error("leer");
+    DATA=buildData(rows);
+    $("banner").hidden=true;
+    renderStatic();renderAll();
+  }).catch(function(){
+    $("asof").textContent="Daten konnten nicht geladen werden.";
+    showBanner('Die Tabelle ist nicht erreichbar. Pr\u00fcfe, ob sie \u201eIm Web ver\u00f6ffentlicht\u201c ist (Format CSV, Blatt \u201eVerlauf\u201c) und ob der Link stimmt. Wenn du die Seite direkt als Datei \u00f6ffnest, starte sie stattdessen \u00fcber GitHub Pages oder Netlify.');
+  });
+}
+$("chips").addEventListener("click",function(e){
+  var b=e.target.closest("button");if(!b||!DATA)return;
+  period=b.getAttribute("data-p");renderAll();
+});
+$("rows").addEventListener("click",function(e){
+  var r=e.target.closest(".rowbtn");if(!r||!DATA)return;
+  var id=r.getAttribute("data-id");sel=(sel===id)?null:id;renderMarkets();renderCurve();
+});
+renderChips();
+load();
+})();
+</script>
+</body>
+</html>
